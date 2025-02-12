@@ -9,6 +9,7 @@ from typing import List
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from jinja2 import Template
+import uvicorn
 
 # ✅ FastAPI 앱 생성
 app = FastAPI()
@@ -247,5 +248,5 @@ def view_data():
         return f"<h3>❌ 오류 발생: {str(e)}</h3>"
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))  # Render에서 제공하는 포트 사용
+    uvicorn.run(app, host="0.0.0.0", port=port)
