@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사전원가 자동화</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <script>
+        let stopwatchInterval;
+        let startTime;
+
+        function startStopwatch() {
+            startTime = Date.now();  // 현재 시간 기록
+            document.getElementById("stopwatch").innerText = "⏳ 경과 시간: 0초";
+
+            if (stopwatchInterval) {
+                clearInterval(stopwatchInterval); // 기존 인터벌 제거
+            }
+
+            // ⏳ 1초마다 경과 시간을 갱신
+            stopwatchInterval = setInterval(() => {
+                let elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+                document.getElementById("stopwatch").innerText = `⏳ 경과 시간: ${elapsedTime}초`;
+            }, 1000);
+        }
+
+        function stopStopwatch() {
+            clearInterval(stopwatchInterval);  // ⏹️ 스톱워치 중지
+        }
+
+        async function loadDataPreview() {
+            try {
+                let response = await fetch("http://127.0.0.1:8000/view-data");
+                if (!response.ok) {
+                    throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
+                }
+
+                let html = await response.text();
+                document.getElementById("dataPreview").innerHTML = html;
+
+                // ✅ 테이블 스타일 적용 (검색, 정렬, 페이징 활성화)
+                $(document).ready(function() {
+                    $('.dataframe').DataTable({
+                        "paging": true,
+                        "searching": true,
+                        "ordering": true,
+                        "info": true,
+                        "lengthMenu": [10, 25, 50, 100],
+                        "language": {
+                            "lengthMenu": "페이지당 _MENU_ 개씩 보기",
+                            "zeroRecords": "🔍 검색 결과가 없습니다.",
+                            "info": "총 _TOTAL_ 개 중 _START_ - _END_",
+                            "infoEmpty": "데이터가 없습니다.",
+                            "infoFiltered": "(총 _MAX_ 개 중 검색됨)",
+                            "search": "🔍 검색: ",
+                            "paginate": {
+                                "first": "처음",
+                                "last": "마지막",
+                                "next": "다음",
+                                "previous": "이전"
+                            }
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error("❌ 데이터 로딩 오류:", error);
+                document.getElementById("dataPreview").innerHTML = "<p>❌ 데이터를 불러오지 못했습니다.</p>";
+            }
+        }
+
+        async function uploadFiles() {
+            let fileInput = document.getElementById("fileInput");
+            let files = fileInput.files;
+    
+            if (files.length === 0) {
+                alert("📂 파일을 선택해주세요.");
+                return;
+            }
+    
+            let formData = new FormData();
+            let uploadedFileList = document.getElementById("uploadedFileList");
+            uploadedFileList.innerHTML = ""; // 기존 목록 초기화
+    
+            for (let file of files) {
+                formData.append("files", file);
+    
+                // 화면에 업로드된 파일 목록 추가
+                let li = document.createElement("li");
+                li.innerText = file.name;
+                uploadedFileList.appendChild(li);
+            }
+    
+            document.getElementById("status").innerText = "📤 파일 업로드 중...";
+    
+            try {
+                let response = await fetch("http://127.0.0.1:8000/upload/", {
+                    method: "POST",
+                    body: formData
+                });
+    
+                if (!response.ok) {
+                    throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
+                }
+    
+                let result = await response.json();
+                console.log("✅ 서버 응답:", result);
+    
+                document.getElementById("status").innerText = result.message || "✅ 업로드 완료!";
+                listProcessedFiles(); // ✅ 파일 목록 갱신
+                loadDataPreview();  // ✅ 업로드 후 데이터 새로고침
+    
+            } catch (error) {
+                console.error("❌ 파일 업로드 오류:", error);
+                document.getElementById("status").innerText = "❌ 업로드 실패!";
+            }
+        }
+
+        async function runProcessing() {
+            document.getElementById("status").innerText = "⚙️ 전체 데이터 처리 중...";
+            startStopwatch();  // ⏳ 스톱워치 시작
+
+            try {
+                let response = await fetch("http://127.0.0.1:8000/run-processing/", {
+                    method: "POST"
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
+                }
+
+                let result = await response.json();
+                document.getElementById("status").innerText = result.message || "✅ 데이터 처리 완료!";
+                
+                stopStopwatch();  // ⏹️ 스톱워치 중지
+                listProcessedFiles(); // ✅ 파일 목록 갱신
+                loadDataPreview();  // ✅ 데이터 새로고침
+
+            } catch (error) {
+                console.error("❌ 데이터 처리 오류:", error);
+                document.getElementById("status").innerText = "❌ 데이터 처리 실패!";
+                stopStopwatch();
+            }
+        }
+
+        async function listProcessedFiles() {
+            try {
+                let response = await fetch("http://127.0.0.1:8000/list-results/");
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
+                }
+
+                let result = await response.json();
+                let fileList = document.getElementById("fileList");
+                fileList.innerHTML = "";
+
+                if (result.processed_files?.length > 0) {
+                    result.processed_files.forEach(file => {
+                        let li = document.createElement("li");
+                        let a = document.createElement("a");
+                        a.href = "http://127.0.0.1:8000/download/" + encodeURIComponent(file);
+                        a.innerText = file;
+                        a.download = file;
+                        li.appendChild(a);
+                        fileList.appendChild(li);
+                    });
+                } else {
+                    fileList.innerHTML = "<li>🚫 처리된 파일 없음</li>";
+                }
+            } catch (error) {
+                console.error("❌ 파일 목록 가져오기 오류:", error);
+                document.getElementById("status").innerText = "❌ 처리된 파일 목록을 가져오지 못했습니다.";
+            }
+        }
+
+        // ✅ 페이지 로드 시 데이터 미리보기 로드
+        document.addEventListener("DOMContentLoaded", () => {
+            loadDataPreview();
+            listProcessedFiles();
+        });
+    </script>
+
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f4f4f4; font-size: 16px; } /* 헤더 크기 유지 */
+        td { font-size: 14px; } /* 🔽 기존보다 2단계 작은 크기 */
+        .empty-message { text-align: center; font-weight: bold; color: #888; margin-top: 10px; }
+        .progress-container { width: 100%; background-color: #f3f3f3; border-radius: 5px; overflow: hidden; display: none; margin-top: 10px; }
+        .progress-bar { width: 0%; height: 20px; background-color: #4caf50; text-align: center; color: white; line-height: 20px; }
+    </style>
+</head>
+<body>
+    <h2>파일 업로드 및 데이터 처리</h2>
+
+    <input type="file" id="fileInput" multiple>
+    <button onclick="uploadFiles()">업로드</button>
+    <button onclick="runProcessing()">전체 데이터 처리</button>
+    <p id="status"></p>
+
+    <h3>📂 업로드된 파일 목록</h3>
+    <ul id="uploadedFileList"></ul>    
+
+    <h3>경과 시간</h3>
+    <p id="stopwatch">⏳ 경과 시간: 0초</p>    
+
+    <h3>처리된 파일 다운로드</h3>
+    <ul id="fileList"></ul>
+
+    <h3>📊 데이터 미리보기</h3>
+    <div id="dataPreview">
+        <p>📥 데이터를 불러오는 중...</p>
+    </div>
+</body>
+</html>
