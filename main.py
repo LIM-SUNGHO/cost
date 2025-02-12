@@ -246,6 +246,15 @@ def view_data():
 
     except Exception as e:
         return f"<h3>❌ 오류 발생: {str(e)}</h3>"
+    
+# ✅ 기본 루트 엔드포인트 추가
+@app.get("/")
+def read_root():
+    return {"message": "FastAPI is running successfully!"}
+
+@app.get("/keep-alive")
+def keep_alive():
+    return {"status": "alive"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))  # Render에서 제공하는 포트 사용
