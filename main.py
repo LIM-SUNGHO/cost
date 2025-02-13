@@ -20,10 +20,10 @@ PRICE_CSV_FILE = "단가누락.csv"
 # ✅ CORS 설정 추가 (프론트엔드 접근 허용)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 보안을 위해 배포 시 특정 도메인만 허용
+    allow_origins=["*"],  # 또는 특정 도메인만 허용 가능 ex) ["https://your-frontend-url.com"]
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # 모든 HTTP 메서드 허용 (GET, POST, PUT, DELETE 등)
+    allow_headers=["*"],  # 모든 헤더 허용
 )
 
 # ✅ 업로드 및 처리된 파일 저장 폴더 설정

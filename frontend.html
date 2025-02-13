@@ -32,7 +32,7 @@
 
         async function loadDataPreview() {
             try {
-                let response = await fetch("http://127.0.0.1:8000/view-data");
+                let response = await fetch("https://cost-uisn.onrender.com/view-data");
                 if (!response.ok) {
                     throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
                 }
@@ -96,7 +96,7 @@
             document.getElementById("status").innerText = "📤 파일 업로드 중...";
     
             try {
-                let response = await fetch("http://127.0.0.1:8000/upload/", {
+                let response = await fetch("https://cost-uisn.onrender.com/upload/", {
                     method: "POST",
                     body: formData
                 });
@@ -123,7 +123,7 @@
             startStopwatch();  // ⏳ 스톱워치 시작
 
             try {
-                let response = await fetch("http://127.0.0.1:8000/run-processing/", {
+                let response = await fetch("https://cost-uisn.onrender.com/run-processing/", {
                     method: "POST"
                 });
 
@@ -147,7 +147,7 @@
 
         async function listProcessedFiles() {
             try {
-                let response = await fetch("http://127.0.0.1:8000/list-results/");
+                let response = await fetch("https://cost-uisn.onrender.com/list-results/");
                 
                 if (!response.ok) {
                     throw new Error(`HTTP 오류! 상태 코드: ${response.status}`);
@@ -161,7 +161,7 @@
                     result.processed_files.forEach(file => {
                         let li = document.createElement("li");
                         let a = document.createElement("a");
-                        a.href = "http://127.0.0.1:8000/download/" + encodeURIComponent(file);
+                        a.href = "https://cost-uisn.onrender.com/download/" + encodeURIComponent(file);
                         a.innerText = file;
                         a.download = file;
                         li.appendChild(a);
