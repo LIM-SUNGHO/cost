@@ -1,0 +1,25 @@
+{
+  "name": "cost",
+  "version": "1.0.0",
+  "description": "<<<<<<< HEAD\r # cost\r cost",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LIM-SUNGHO/cost.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/LIM-SUNGHO/cost/issues"
+  },
+  "homepage": "https://github.com/LIM-SUNGHO/cost#readme",
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-scripts": "^5.0.1"
+  }
+}
