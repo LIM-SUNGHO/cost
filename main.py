@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import BackgroundTasks
 import os
 import logging
 import pandas as pd
@@ -37,40 +38,50 @@ os.makedirs(RESULT_DIR, exist_ok=True)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# ✅ XLSX → CSV 변환을 백그라운드에서 실행하는 함수
+def convert_xlsx_to_csv(file_path: str):
+    import openpyxl
+
+    try:
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        ws = wb.active
+
+        csv_file_path = file_path.replace(".xlsx", ".csv")
+        with open(csv_file_path, "w", encoding="utf-8-sig", newline="") as f:
+            for row in ws.iter_rows(values_only=True):
+                f.write(",".join(str(cell) if cell is not None else "" for cell in row) + "\n")
+
+        wb.close()
+        os.remove(file_path)  # ✅ 원본 XLSX 삭제 (선택 사항)
+        logger.info(f"✅ XLSX → CSV 변환 완료: {csv_file_path}")
+    except Exception as e:
+        logger.error(f"❌ XLSX 변환 실패: {str(e)}")
+
 
 @app.post("/upload/")
-async def upload_files(files: List[UploadFile] = File(...)):
+async def upload_files(files: List[UploadFile] = File(...), background_tasks: BackgroundTasks = None):
     """
-    여러 개의 파일 업로드 및 XLSX → CSV 변환 API
+    ✅ 여러 개의 파일을 업로드하고, XLSX → CSV 변환을 **백그라운드**에서 실행
     """
     uploaded_files = []
 
     for file in files:
         file_path = os.path.join(UPLOAD_DIR, file.filename)
-        logger.info(f"파일 업로드 시작: {file.filename}")
+        logger.info(f"📤 파일 업로드 시작: {file.filename}")
 
         # 파일 저장
         with open(file_path, "wb") as f:
             f.write(await file.read())
 
-        # ✅ XLSX → CSV 변환 (업로드 시 변환 수행)
+        # ✅ XLSX 파일이면, 변환을 백그라운드에서 실행
         if file.filename.endswith(".xlsx"):
-            try:
-                df = pd.read_excel(file_path, engine="openpyxl")
-                csv_file_path = file_path.replace(".xlsx", ".csv")
-                df.to_csv(csv_file_path, index=False, encoding="utf-8-sig")
-                logger.info(f"XLSX → CSV 변환 완료: {csv_file_path}")
-
-                # 원본 XLSX 삭제 (선택 사항)
-                os.remove(file_path)
-                uploaded_files.append(csv_file_path.split("/")[-1])  # 변환된 CSV 파일명 저장
-            except Exception as e:
-                logger.error(f"XLSX 변환 실패: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"XLSX 변환 실패: {str(e)}")
+            background_tasks.add_task(convert_xlsx_to_csv, file_path)
+            uploaded_files.append(file.filename.replace(".xlsx", ".csv"))  # 변환된 파일명 추가
         else:
             uploaded_files.append(file.filename)
 
-    return {"message": "파일 업로드 및 변환 완료", "uploaded_files": uploaded_files}
+    return {"message": "✅ 파일 업로드 완료, 변환은 백그라운드에서 진행됩니다.", "uploaded_files": uploaded_files}
+
 
 
 # ✅ 단계별 실행 함수
@@ -258,4 +269,4 @@ def keep_alive():
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))  # Render에서 제공하는 포트 사용
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=port, timeout_keep_alive=300)
